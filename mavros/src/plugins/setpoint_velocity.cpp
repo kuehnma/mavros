@@ -42,6 +42,7 @@ public:
 
 		//cmd_vel usually is the topic used for velocity control in many controllers / planners
 		vel_sub = sp_nh.subscribe("cmd_vel", 10, &SetpointVelocityPlugin::vel_cb, this);
+    vel_sub = sp_nh.subscribe("cmd_vel_body", 10, &SetpointVelocityPlugin::vel_body_cb, this);
 	}
 
 	const message_map get_rx_handlers() {
@@ -90,6 +91,36 @@ private:
 		send_setpoint_velocity(req->header.stamp, vel_enu,
 				req->twist.angular.z);
 	}
+
+/** CHANGES from Kuehn for FLAIR Project **/
+  void send_body_setpoint_velocity(const ros::Time &stamp, Eigen::Vector3d &vel_enu, double yaw_rate) {
+    /**
+     * Documentation start from bit 1 instead 0;
+     * Ignore position and accel vectors, yaw.
+     */
+    uint16_t ignore_all_except_v_xyz_yr = (1 << 10) | (7 << 6) | (7 << 0);
+
+    auto vel = UAS::transform_frame_enu_ned(vel_enu);
+    auto yr = UAS::transform_frame_baselink_aircraft(Eigen::Vector3d(0.0, 0.0, yaw_rate));
+
+    set_position_target_local_ned(stamp.toNSec() / 1000000,
+        MAV_FRAME_BODY_OFFSET_NED, //BIG DIFFERENCE
+        ignore_all_except_v_xyz_yr,
+        0.0, 0.0, 0.0,
+        vel.x(), vel.y(), vel.z(),
+        0.0, 0.0, 0.0,
+        0.0, yr.z());
+  }
+
+
+  void vel_body_cb(const geometry_msgs::TwistStamped::ConstPtr &req) {
+    Eigen::Vector3d vel_enu;
+
+    tf::vectorMsgToEigen(req->twist.linear, vel_enu);
+    send_body_setpoint_velocity(req->header.stamp, vel_enu,
+        req->twist.angular.z);
+  }
+
 };
 };	// namespace mavplugin
 
