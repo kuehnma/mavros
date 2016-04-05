@@ -42,7 +42,8 @@ public:
 
 		//cmd_vel usually is the topic used for velocity control in many controllers / planners
 		vel_sub = sp_nh.subscribe("cmd_vel", 10, &SetpointVelocityPlugin::vel_cb, this);
-    vel_body_sub = sp_nh.subscribe("cmd_vel_body", 10, &SetpointVelocityPlugin::vel_body_cb, this);
+		vel_body_sub = sp_nh.subscribe("cmd_vel_body", 10, &SetpointVelocityPlugin::vel_body_cb, this);
+
 	}
 
 	const message_map get_rx_handlers() {
@@ -94,7 +95,7 @@ private:
 	}
 
 /** CHANGES from Kuehn for FLAIR Project **/
-  void send_body_setpoint_velocity(const ros::Time &stamp, Eigen::Vector3d &vel_ros, double yaw_rate) {
+void send_body_setpoint_velocity(const ros::Time &stamp, Eigen::Vector3d &vel_ros, double yaw_rate) {
     /**
      * Documentation start from bit 1 instead 0;
      * Ignore position and accel vectors, yaw.
