@@ -42,7 +42,7 @@ public:
 
 		//cmd_vel usually is the topic used for velocity control in many controllers / planners
 		vel_sub = sp_nh.subscribe("cmd_vel", 10, &SetpointVelocityPlugin::vel_cb, this);
-    vel_sub = sp_nh.subscribe("cmd_vel_body", 10, &SetpointVelocityPlugin::vel_body_cb, this);
+    vel_body_sub = sp_nh.subscribe("cmd_vel_body", 10, &SetpointVelocityPlugin::vel_body_cb, this);
 	}
 
 	const message_map get_rx_handlers() {
@@ -55,6 +55,7 @@ private:
 	UAS *uas;
 
 	ros::Subscriber vel_sub;
+	ros::Subscriber vel_body_sub;
 
 	/* -*- mid-level helpers -*- */
 
@@ -93,21 +94,26 @@ private:
 	}
 
 /** CHANGES from Kuehn for FLAIR Project **/
-  void send_body_setpoint_velocity(const ros::Time &stamp, Eigen::Vector3d &vel_enu, double yaw_rate) {
+  void send_body_setpoint_velocity(const ros::Time &stamp, Eigen::Vector3d &vel_ros, double yaw_rate) {
     /**
      * Documentation start from bit 1 instead 0;
      * Ignore position and accel vectors, yaw.
      */
     uint16_t ignore_all_except_v_xyz_yr = (1 << 10) | (7 << 6) | (7 << 0);
 
-    auto vel = UAS::transform_frame_enu_ned(vel_enu);
-    auto yr = UAS::transform_frame_baselink_aircraft(Eigen::Vector3d(0.0, 0.0, yaw_rate));
+    //Own conversion from ROS body frame (X: forward Y: left Z: u; REP103) to NED (Ardupilot Body Representation: X: Forward Y: Right Z: Down)
+    Eigen::Vector3d vel_ardupilot;
+    vel_ardupilot(0) = vel_ros(0);
+    vel_ardupilot(1) = vel_ros(1) * -1.0;
+    vel_ardupilot(2) = vel_ros(2) * -1.0;
+
+	auto yr = UAS::transform_frame_baselink_aircraft(Eigen::Vector3d(0.0, 0.0, yaw_rate));
 
     set_position_target_local_ned(stamp.toNSec() / 1000000,
         MAV_FRAME_BODY_OFFSET_NED, //BIG DIFFERENCE
         ignore_all_except_v_xyz_yr,
         0.0, 0.0, 0.0,
-        vel.x(), vel.y(), vel.z(),
+        vel_ardupilot.x(), vel_ardupilot.y(), vel_ardupilot.z(),
         0.0, 0.0, 0.0,
         0.0, yr.z());
   }
